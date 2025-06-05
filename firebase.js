@@ -6,7 +6,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyAY0X4truWyyJL8Ki7sXASA2_xbOgFRrfA",
-  authDomain: "airdrop-84ff4.firebaseapp.com",
+  authDomain: "difains.github.io",
   projectId: "airdrop-84ff4",
   storageBucket: "airdrop-84ff4.firebasestorage.app",
   messagingSenderId: "350878632708",
