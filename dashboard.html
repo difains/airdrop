@@ -6,30 +6,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
   <link rel="stylesheet" href="style.css">
   <style>
-    .dash-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
-    .dash-controls { display:flex; justify-content:center; gap:10px; margin-bottom:22px; flex-wrap:wrap; }
-    .dash-controls select { font-size:1em; padding:6px 12px; border-radius:6px; border:1px solid #ddd; }
-    .dash-summary { text-align:center; margin-bottom:20px; }
-    .dash-summary span { font-size:2em; font-weight:700; color:#4a90e2; }
-    .dash-table { width:100%; border-collapse:collapse; background:#fff; }
-    .dash-table th, .dash-table td { padding:9px 5px; border-bottom:1px solid #eee; text-align:center; font-size:0.98em; }
-    .dash-table th { background:#f3f6fa; }
-    .badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:0.93em; color:#fff; }
-    .badge.done { background:#4a90e2; }
-    .badge.ing { background:#f5a623; }
-    @media (max-width:600px) {
-      .dash-title { font-size:1.2em; }
-      .dash-summary span { font-size:1.3em; }
-      .dash-table th, .dash-table td { font-size:0.93em; padding:7px 2px; }
+    .dash-title { 
+      text-align: center; 
+      font-size: 1.6em; 
+      font-weight: 700; 
+      margin-bottom: 18px; 
+    }
+    .dash-controls { 
+      display: flex; 
+      justify-content: center; 
+      gap: 10px; 
+      margin-bottom: 22px; 
+      flex-wrap: wrap; 
+    }
+    .dash-controls select { 
+      font-size: 1em; 
+      padding: 6px 12px; 
+      border-radius: 6px; 
+      border: 1px solid #ddd; 
+    }
+    .dash-summary { 
+      text-align: center; 
+      margin-bottom: 20px; 
+    }
+    .dash-summary span { 
+      font-size: 2em; 
+      font-weight: 700; 
+      color: #4a90e2; 
+    }
+    .dash-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      background: #fff; 
+    }
+    .dash-table th, .dash-table td { 
+      padding: 9px 5px; 
+      border-bottom: 1px solid #eee; 
+      text-align: center; 
+      font-size: 0.98em; 
+    }
+    .dash-table th { 
+      background: #f3f6fa; 
+    }
+    @media (max-width: 600px) {
+      .dash-title { 
+        font-size: 1.2em; 
+      }
+      .dash-summary span { 
+        font-size: 1.3em; 
+      }
+      .dash-table th, .dash-table td { 
+        font-size: 0.93em; 
+        padding: 7px 2px; 
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <button class="hamburger" id="hamburgerBtn">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
+    
     <div class="dash-title">대시보드</div>
     <div class="dash-controls">
-      <select id="yearSelect"></select>
-      <select id="monthSelect"></select>
+      <select id="yearSelect">
+        <option value="all">전체년도</option>
+      </select>
+      <select id="monthSelect">
+        <option value="all">전체월</option>
+      </select>
     </div>
     <div class="dash-summary">
       총 수익: <span id="totalProfit">0</span> 원
@@ -47,115 +95,230 @@
           </tr>
         </thead>
         <tbody id="dashboardBody">
-          <!-- JS에서 데이터 렌더링 -->
+          <tr><td colspan="6">로딩 중...</td></tr>
         </tbody>
       </table>
     </div>
+    
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <nav class="menu-drawer" id="menuDrawer">
+      <button class="close-btn" id="closeMenuBtn">&times;</button>
+      <div class="menu-title">메뉴</div>
+      <button onclick="location.href='index.html'">홈</button>
+      <button class="active" onclick="location.href='dashboard.html'">대시보드</button>
+      <button onclick="location.href='calendar.html'">에어드랍 참여 (캘린더)</button>
+      <button id="adminMenuBtn" style="display:none;" onclick="location.href='admin.html'">에어드랍 일정관리 (관리자)</button>
+      <button class="logout" id="drawerLogoutBtn">로그아웃</button>
+    </nav>
   </div>
 
-  <script type="module">
-    import { auth, db } from './firebase.js';
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+  <script>
+    // Firebase 로드 전에도 기본 UI 표시
+    console.log('대시보드 페이지 로드됨');
+    
+    // 햄버거 메뉴 기능
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const menuDrawer = document.getElementById('menuDrawer');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
+    const adminMenuBtn = document.getElementById('adminMenuBtn');
+    const drawerLogoutBtn = document.getElementById('drawerLogoutBtn');
+
+    function openMenu() {
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.add('open');
+        menuOverlay.classList.add('open');
+      }
+    }
+
+    function closeMenu() {
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.remove('open');
+        menuOverlay.classList.remove('open');
+      }
+    }
+
+    if (hamburgerBtn) hamburgerBtn.onclick = openMenu;
+    if (closeMenuBtn) closeMenuBtn.onclick = closeMenu;
+    if (menuOverlay) menuOverlay.onclick = closeMenu;
+
+    if (drawerLogoutBtn) {
+      drawerLogoutBtn.onclick = () => {
+        if (confirm('정말 나갈거에요?')) {
+          try {
+            import('./firebase.js').then(({ auth }) => {
+              import('https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js').then(({ signOut }) => {
+                signOut(auth).then(() => {
+                  window.location.href = 'login.html';
+                }).catch(() => {
+                  window.location.href = 'login.html';
+                });
+              }).catch(() => {
+                window.location.href = 'login.html';
+              });
+            }).catch(() => {
+              window.location.href = 'login.html';
+            });
+          } catch {
+            window.location.href = 'login.html';
+          }
+        }
+      };
+    }
 
     // 연도/월 select 옵션 생성
     function fillYearMonth() {
       const now = new Date();
       const yearSel = document.getElementById('yearSelect');
       const monthSel = document.getElementById('monthSelect');
-      yearSel.innerHTML = '';
-      monthSel.innerHTML = '<option value="all">전체</option>';
+      
+      if (!yearSel || !monthSel) return;
+      
+      // 연도 옵션 추가
       for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) {
-        yearSel.innerHTML += `<option value="${y}">${y}년</option>`;
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = y + '년';
+        yearSel.appendChild(option);
       }
+      
+      // 월 옵션 추가
       for (let m = 1; m <= 12; m++) {
-        monthSel.innerHTML += `<option value="${m}">${m}월</option>`;
+        const option = document.createElement('option');
+        option.value = m;
+        option.textContent = m + '월';
+        monthSel.appendChild(option);
       }
+      
       yearSel.value = now.getFullYear();
       monthSel.value = now.getMonth() + 1;
     }
 
-    // Firestore에서 참여 기록 불러오기 (예시 구조: users/{uid}/participations/{doc})
+    // 대시보드 데이터 로드 (Firebase 없이도 기본 동작)
     async function loadDashboard(uid, year, month) {
       const tbody = document.getElementById('dashboardBody');
+      const totalProfitEl = document.getElementById('totalProfit');
+      
+      if (!tbody || !totalProfitEl) return;
+      
       tbody.innerHTML = '<tr><td colspan="6">로딩 중...</td></tr>';
-      let totalProfit = 0;
-      let rows = '';
+      
+      try {
+        // Firebase 모듈 동적 로드
+        const { db } = await import('./firebase.js');
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js');
+        
+        const q = collection(db, "users", uid, "participations");
+        const docs = await getDocs(q);
+        let list = [];
+        
+        docs.forEach(doc => {
+          let d = doc.data();
+          d.startDate = d.startDate ? new Date(d.startDate) : null;
+          d.endDate = d.endDate ? new Date(d.endDate) : null;
+          list.push(d);
+        });
 
-      // 참여기록 예시: users/{uid}/participations/{docId}
-      // doc: { coinName, startDate, endDate, profit, days, checkedDays: [1,2,3...], rewardDate }
-      let q = collection(db, "users", uid, "participations");
-      const docs = await getDocs(q);
-      let list = [];
-      docs.forEach(doc => {
-        let d = doc.data();
-        // 날짜 파싱
-        d.startDate = d.startDate ? new Date(d.startDate) : null;
-        d.endDate = d.endDate ? new Date(d.endDate) : null;
-        list.push(d);
-      });
+        // 연도/월 필터
+        if (year !== 'all') {
+          list = list.filter(d => d.startDate && d.startDate.getFullYear() == year);
+        }
+        if (month !== 'all') {
+          list = list.filter(d => d.startDate && (d.startDate.getMonth() + 1) == month);
+        }
 
-      // 연도/월 필터
-      if (year !== 'all') {
-        list = list.filter(d => d.startDate && d.startDate.getFullYear() == year);
+        // 정렬 (최신순)
+        list.sort((a, b) => (b.startDate || 0) - (a.startDate || 0));
+
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">참여 기록이 없습니다.</td></tr>';
+          totalProfitEl.textContent = '0';
+          return;
+        }
+
+        let totalProfit = 0;
+        let rows = '';
+        
+        list.forEach(d => {
+          const days = d.days || 0;
+          const checked = Array.isArray(d.checkedDays) ? d.checkedDays.length : 0;
+          const isDone = (checked === days && days > 0);
+          const badge = isDone
+            ? '<span class="badge done">참여완료</span>'
+            : '<span class="badge ing">진행중</span>';
+          const profit = d.profit ? Number(d.profit) : 0;
+          totalProfit += profit;
+          
+          rows += `
+            <tr>
+              <td>${d.coinName || '-'}</td>
+              <td>${d.startDate ? d.startDate.toISOString().slice(0,10) : '-'}</td>
+              <td>${d.endDate ? d.endDate.toISOString().slice(0,10) : '-'}</td>
+              <td>${days}</td>
+              <td>${badge}</td>
+              <td>${profit.toLocaleString()}</td>
+            </tr>
+          `;
+        });
+        
+        tbody.innerHTML = rows;
+        totalProfitEl.textContent = totalProfit.toLocaleString();
+        
+      } catch (error) {
+        console.error('대시보드 로드 오류:', error);
+        tbody.innerHTML = '<tr><td colspan="6">데이터를 불러올 수 없습니다.</td></tr>';
+        totalProfitEl.textContent = '0';
       }
-      if (month !== 'all') {
-        list = list.filter(d => d.startDate && (d.startDate.getMonth() + 1) == month);
-      }
-
-      // 정렬 (최신순)
-      list.sort((a, b) => b.startDate - a.startDate);
-
-      if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6">참여 기록이 없습니다.</td></tr>';
-        document.getElementById('totalProfit').textContent = '0';
-        return;
-      }
-
-      list.forEach(d => {
-        const days = d.days || 0;
-        const checked = Array.isArray(d.checkedDays) ? d.checkedDays.length : 0;
-        const isDone = (checked === days && days > 0);
-        const badge = isDone
-          ? '<span class="badge done">참여완료</span>'
-          : '<span class="badge ing">진행중</span>';
-        const profit = d.profit ? Number(d.profit) : 0;
-        totalProfit += profit;
-        rows += `
-          <tr>
-            <td>${d.coinName || '-'}</td>
-            <td>${d.startDate ? d.startDate.toISOString().slice(0,10) : '-'}</td>
-            <td>${d.endDate ? d.endDate.toISOString().slice(0,10) : '-'}</td>
-            <td>${days}</td>
-            <td>${badge}</td>
-            <td>${profit.toLocaleString()}</td>
-          </tr>
-        `;
-      });
-      tbody.innerHTML = rows;
-      document.getElementById('totalProfit').textContent = totalProfit.toLocaleString();
     }
 
-    // 인증 후 대시보드 표시
+    // 대시보드 초기화
     function initDashboard(uid) {
       fillYearMonth();
       const yearSel = document.getElementById('yearSelect');
       const monthSel = document.getElementById('monthSelect');
-      const load = () => loadDashboard(uid, yearSel.value, monthSel.value);
-      yearSel.addEventListener('change', load);
-      monthSel.addEventListener('change', load);
+      
+      const load = () => {
+        if (yearSel && monthSel) {
+          loadDashboard(uid, yearSel.value, monthSel.value);
+        }
+      };
+      
+      if (yearSel) yearSel.addEventListener('change', load);
+      if (monthSel) monthSel.addEventListener('change', load);
       load();
     }
 
-    // 인증 체크
-    onAuthStateChanged(auth, user => {
-      if (!user) {
-        alert('로그인이 필요합니다.');
+    // Firebase 연결 시도
+    try {
+      import('./firebase.js').then(({ auth }) => {
+        import('https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js').then(({ onAuthStateChanged }) => {
+          console.log('Firebase 로드 성공');
+          
+          onAuthStateChanged(auth, user => {
+            if (!user) {
+              alert('로그인이 필요합니다.');
+              location.href = "login.html";
+              return;
+            }
+            
+            let userName = user.displayName || (user.email ? user.email.split('@')[0] : '');
+            if (adminMenuBtn) {
+              adminMenuBtn.style.display = (userName === 'difains') ? 'block' : 'none';
+            }
+            
+            initDashboard(user.uid);
+          });
+        });
+      }).catch(error => {
+        console.error('Firebase 로드 실패:', error);
+        alert('Firebase 연결에 실패했습니다. 로그인 페이지로 이동합니다.');
         location.href = "login.html";
-        return;
-      }
-      initDashboard(user.uid);
-    });
+      });
+    } catch (error) {
+      console.error('모듈 로드 오류:', error);
+      alert('시스템 오류가 발생했습니다. 로그인 페이지로 이동합니다.');
+      location.href = "login.html";
+    }
   </script>
 </body>
 </html>
