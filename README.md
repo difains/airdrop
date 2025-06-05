@@ -1,5 +1,6 @@
 # airdrop
 코인 에어드랍 참여 관리 시스템
+https://difains.github.io/airdrop/
 
 
 # 디렉토리 구조
