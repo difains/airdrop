@@ -34,23 +34,57 @@
 </head>
 <body>
   <div class="container">
+    <button class="hamburger" id="hamburgerBtn">
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+      <span class="hamburger-bar"></span>
+    </button>
     <div class="cal-title">코인 에어드랍 참여 (캘린더)</div>
     <div id="calendar"></div>
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <nav class="menu-drawer" id="menuDrawer">
+      <button class="close-btn" id="closeMenuBtn">&times;</button>
+      <div class="menu-title">메뉴</div>
+      <button onclick="location.href='dashboard.html'">대시보드</button>
+      <button class="active" onclick="location.href='calendar.html'">에어드랍 참여 (캘린더)</button>
+      <button id="adminMenuBtn" style="display:none;" onclick="location.href='admin.html'">에어드랍 일정관리 (관리자)</button>
+      <button class="logout" id="drawerLogoutBtn">로그아웃</button>
+    </nav>
   </div>
-
-  <!-- FullCalendar -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
-  <!-- SweetAlert2 for alerts (optional, for better UX) -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script type="module">
     import { auth, db } from './firebase.js';
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { collection, getDocs, setDoc, doc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { collection, getDocs, setDoc, doc, addDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    // 햄버거 메뉴
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const menuDrawer = document.getElementById('menuDrawer');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
+    const adminMenuBtn = document.getElementById('adminMenuBtn');
+    const drawerLogoutBtn = document.getElementById('drawerLogoutBtn');
+    function openMenu() {
+      menuDrawer.classList.add('open');
+      menuOverlay.classList.add('open');
+    }
+    function closeMenu() {
+      menuDrawer.classList.remove('open');
+      menuOverlay.classList.remove('open');
+    }
+    hamburgerBtn.onclick = openMenu;
+    closeMenuBtn.onclick = closeMenu;
+    menuOverlay.onclick = closeMenu;
+    drawerLogoutBtn.onclick = async () => {
+      if (confirm('정말 나갈거에요?')) {
+        await signOut(auth);
+        window.location.href = 'login.html';
+      }
+    };
 
     let userId = null;
-    let coins = []; // 참여 가능한 코인명 목록 (관리자가 Firestore에 등록했다고 가정)
-
-    // 참여기록 불러오기
+    let coins = [];
     async function getParticipations(uid) {
       const q = collection(db, "users", uid, "participations");
       const docsnap = await getDocs(q);
@@ -65,8 +99,6 @@
       });
       return list;
     }
-
-    // 코인명 목록 불러오기 (admin이 등록한 airdrops 컬렉션에서)
     async function getCoinNames() {
       const q = collection(db, "airdrops");
       const docsnap = await getDocs(q);
@@ -77,28 +109,23 @@
       });
       return names;
     }
-
-    // 캘린더 이벤트 생성
     function makeEvents(participations) {
       let events = [];
       participations.forEach(p => {
-        // 참여 진행상태 뱃지
         const days = p.days || 0;
         const checked = Array.isArray(p.checkedDays) ? p.checkedDays.length : 0;
         const isDone = (checked === days && days > 0);
         const badge = isDone
           ? '<span class="badge done">참여완료</span>'
           : '<span class="badge ing">진행중</span>';
-        // 참여기간 이벤트
         events.push({
           id: p.id,
           title: `${p.coinName} ${badge}`,
           start: p.startDate,
-          end: p.endDate ? new Date(new Date(p.endDate).getTime() + 24*60*60*1000) : undefined, // FullCalendar end는 exclusive
+          end: p.endDate ? new Date(new Date(p.endDate).getTime() + 24*60*60*1000) : undefined,
           allDay: true,
           extendedProps: { ...p }
         });
-        // 지급일 이벤트
         if (p.rewardDate) {
           events.push({
             id: p.id + '-reward',
@@ -111,14 +138,7 @@
       });
       return events;
     }
-
-    // 팝업 생성
     function showModal({mode, data, coinNames, onSave, onCancel}) {
-      // mode: 'add' or 'edit'
-      // data: {coinName, startDate, endDate, checkedDays, rewardDate, profit}
-      // coinNames: [{name, ...}]
-      // onSave: callback(data)
-      // onCancel: callback()
       const bg = document.createElement('div');
       bg.className = 'modal-bg';
       let days = 0;
@@ -126,7 +146,6 @@
       let startDate = data.startDate ? new Date(data.startDate) : null;
       let endDate = data.endDate ? new Date(data.endDate) : null;
       if (Array.isArray(data.checkedDays)) checkedDays = [...data.checkedDays];
-
       function getDaysArray(start, end) {
         let arr = [];
         if (!start || !end) return arr;
@@ -139,7 +158,6 @@
         }
         return arr;
       }
-
       function renderDaysCheckbox() {
         const wrap = bg.querySelector('.days-checkbox');
         wrap.innerHTML = '';
@@ -153,7 +171,6 @@
           const checked = checkedDays.includes(d.value);
           wrap.innerHTML += `<label><input type="checkbox" id="${id}" value="${d.value}" ${checked ? 'checked' : ''}> ${d.label}</label>`;
         });
-        // 체크박스 이벤트
         daysArr.forEach(d => {
           const chk = bg.querySelector(`#chkday${d.value}`);
           chk && chk.addEventListener('change', e => {
@@ -165,7 +182,6 @@
           });
         });
       }
-
       bg.innerHTML = `
         <div class="modal">
           <h3>${mode === 'add' ? '참여 등록' : '참여 수정'}</h3>
@@ -190,21 +206,15 @@
         </div>
       `;
       document.body.appendChild(bg);
-
-      // 날짜/코인명 변경 시 체크박스 갱신
       bg.querySelector('#startDate').addEventListener('change', renderDaysCheckbox);
       bg.querySelector('#endDate').addEventListener('change', renderDaysCheckbox);
-
       renderDaysCheckbox();
-
-      // 저장
       bg.querySelector('.save').onclick = () => {
         const coinName = bg.querySelector('#coinName').value;
         const startDate = bg.querySelector('#startDate').value;
         const endDate = bg.querySelector('#endDate').value;
         const rewardDate = bg.querySelector('#rewardDate').value;
         const profit = bg.querySelector('#profit').value;
-        // checkedDays: 체크된 일차
         const daysArr = getDaysArray(new Date(startDate), new Date(endDate));
         const checked = [];
         daysArr.forEach(d => {
@@ -230,18 +240,14 @@
         });
         document.body.removeChild(bg);
       };
-      // 취소
       bg.querySelector('.cancel').onclick = () => {
         document.body.removeChild(bg);
         onCancel && onCancel();
       };
     }
-
-    // 캘린더 렌더링
     async function renderCalendar(uid) {
       coins = await getCoinNames();
       let participations = await getParticipations(uid);
-
       let calendarEl = document.getElementById('calendar');
       let calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
@@ -254,7 +260,6 @@
         },
         events: makeEvents(participations),
         eventClick: function(info) {
-          // 지급일 이벤트는 수정 불가
           if (info.event.id.endsWith('-reward')) return;
           const p = participations.find(x => x.id === info.event.id);
           showModal({
@@ -262,13 +267,11 @@
             data: p,
             coinNames: coins,
             onSave: async (newData) => {
-              // 참여기록 수정
               await setDoc(doc(db, "users", uid, "participations", p.id), {
                 ...p,
                 ...newData
               });
               Swal.fire('수정 완료', '참여 정보가 수정되었습니다.', 'success');
-              // 새로고침
               participations = await getParticipations(uid);
               calendar.removeAllEvents();
               calendar.addEventSource(makeEvents(participations));
@@ -276,13 +279,11 @@
           });
         },
         dateClick: function(info) {
-          // 빈 날짜 클릭: 참여 등록
           showModal({
             mode: 'add',
             data: { startDate: info.dateStr, endDate: info.dateStr, checkedDays: [] },
             coinNames: coins,
             onSave: async (newData) => {
-              // 참여기록 등록
               await addDoc(collection(db, "users", uid, "participations"), newData);
               Swal.fire('등록 완료', '참여가 등록되었습니다.', 'success');
               participations = await getParticipations(uid);
@@ -294,8 +295,6 @@
       });
       calendar.render();
     }
-
-    // 인증 체크 및 캘린더 시작
     onAuthStateChanged(auth, user => {
       if (!user) {
         Swal.fire('로그인이 필요합니다.', '', 'info').then(() => {
@@ -304,6 +303,8 @@
         return;
       }
       userId = user.uid;
+      let userName = user.displayName || (user.email ? user.email.split('@')[0] : '');
+      adminMenuBtn.style.display = (userName === 'difains') ? '' : 'none';
       renderCalendar(userId);
     });
   </script>

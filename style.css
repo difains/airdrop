@@ -1,12 +1,9 @@
-/* 기본 폰트 및 배경 */
 body {
   font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif;
   margin: 0;
   background: #f7f9fb;
   color: #222;
 }
-
-/* 메인 컨테이너 */
 .container {
   max-width: 480px;
   margin: 32px auto;
@@ -14,9 +11,8 @@ body {
   padding: 28px 18px 34px 18px;
   border-radius: 14px;
   box-shadow: 0 2px 16px 0 #0001;
+  position: relative;
 }
-
-/* 인풋, 버튼, 셀렉트 */
 input, button, select, textarea {
   width: 100%;
   margin-bottom: 12px;
@@ -50,8 +46,6 @@ a {
 a:hover {
   text-decoration: underline;
 }
-
-/* 표(table) */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -70,8 +64,6 @@ th {
 tr:last-child td {
   border-bottom: none;
 }
-
-/* 뱃지 */
 .badge {
   display: inline-block;
   padding: 2px 8px;
@@ -89,14 +81,120 @@ tr:last-child td {
 .badge.del {
   background: #e94e77;
 }
-
-/* SweetAlert2 커스텀 */
+/* 햄버거 메뉴 */
+.hamburger {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  width: 34px;
+  height: 34px;
+  background: none;
+  border: none;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.hamburger-bar {
+  width: 24px;
+  height: 3px;
+  background: #4a90e2;
+  margin: 3px 0;
+  border-radius: 2px;
+  transition: all 0.2s;
+  display: block;
+}
+.menu-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  display: none;
+}
+.menu-drawer {
+  position: fixed;
+  top: 0; left: 0;
+  width: 220px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: 2px 0 16px #0002;
+  z-index: 1001;
+  padding: 28px 16px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transform: translateX(-100%);
+  transition: transform 0.25s;
+}
+.menu-drawer.open {
+  transform: translateX(0);
+}
+.menu-overlay.open {
+  display: block;
+}
+.menu-drawer button {
+  width: 100%;
+  margin-bottom: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7f9fb;
+  color: #222;
+  font-weight: 600;
+  border: 1px solid #e5e5e5;
+  transition: background 0.18s;
+}
+.menu-drawer button.active,
+.menu-drawer button:hover {
+  background: #4a90e2;
+  color: #fff;
+}
+.menu-drawer .logout {
+  background: #eee;
+  color: #e94e77;
+  border: 1px solid #e94e77;
+}
+.menu-drawer .logout.active,
+.menu-drawer .logout:hover {
+  background: #e94e77;
+  color: #fff;
+}
+.menu-drawer .menu-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #4a90e2;
+}
+.menu-drawer .close-btn {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.3em;
+  color: #aaa;
+  cursor: pointer;
+}
 .swal2-popup {
   font-size: 1.05em !important;
   font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif;
 }
-
-/* 반응형(모바일~태블릿) */
+/* FullCalendar today 버튼 크기 조정 */
+.fc .fc-button.fc-today-button {
+  font-size: 0.95em;
+  padding: 3px 10px;
+  min-width: 0;
+  min-height: 0;
+  height: 28px;
+  border-radius: 7px;
+  background: #f3f6fa;
+  color: #4a90e2;
+  border: 1px solid #4a90e2;
+  margin-left: 4px;
+}
+.fc .fc-button.fc-today-button:hover {
+  background: #4a90e2;
+  color: #fff;
+}
 @media (max-width: 900px) {
   .container {
     max-width: 100vw;
@@ -122,8 +220,6 @@ tr:last-child td {
     font-size: 1.1em !important;
   }
 }
-
-/* 기타 */
 ::-webkit-input-placeholder { color: #bbb; }
 ::-moz-placeholder { color: #bbb; }
 :-ms-input-placeholder { color: #bbb; }

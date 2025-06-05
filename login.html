@@ -32,18 +32,10 @@
       아직 회원이 아니신가요? <a href="signup.html">회원가입</a>
     </div>
   </div>
-
   <script type="module">
     import { auth } from './firebase.js';
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-
-    // 아이디를 이메일로 변환하는 함수 (예: myid → myid@yourdomain.com)
-    function idToEmail(id) {
-      // 실제 서비스에서는 회원가입 시 email과 id를 매핑하여 저장해야 함
-      // 여기서는 예시로 "@example.com"을 붙입니다.
-      return id + "@example.com";
-    }
-
+    function idToEmail(id) { return id + "@example.com"; }
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('loginId').value.trim();
@@ -55,7 +47,6 @@
       try {
         const email = idToEmail(id);
         await signInWithEmailAndPassword(auth, email, pw);
-        // 로그인 성공 시 메인으로 이동
         window.location.href = "index.html";
       } catch (err) {
         alert('로그인 실패: 아이디 또는 비밀번호를 확인하세요.');
