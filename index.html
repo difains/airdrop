@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <title>코인 에어드랍 관리 대시보드</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  
+  <!-- favicon 추가 (404 오류 해결) -->
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/32/3135/3135715.png">
+  
   <link rel="stylesheet" href="style.css">
   <style>
     .main-logo { 
@@ -77,7 +81,13 @@
       한눈에 쉽고 편리하게!
     </div>
     <div id="welcomeMsg" style="text-align:center; margin-bottom:18px;"></div>
-    <div class="main-menu" id="mainMenu"></div>
+    
+    <!-- 강제로 버튼 표시 (Firebase 연결 전까지) -->
+    <div class="main-menu" id="mainMenu">
+      <button onclick="location.href='login.html'">로그인</button>
+      <button onclick="location.href='signup.html'">회원가입</button>
+    </div>
+    
     <div class="main-footer">
       &copy; 2025 코인 에어드랍 관리
     </div>
@@ -94,11 +104,11 @@
     <button class="logout" id="drawerLogoutBtn">로그아웃</button>
   </nav>
 
-  <script type="module">
-    import { auth } from './firebase.js';
-    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-
-    // 메뉴 드로어 관련
+  <script>
+    // Firebase 로드 전에도 기본 버튼 표시
+    console.log('페이지 로드됨');
+    
+    // 햨버거 메뉴 기능
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const menuDrawer = document.getElementById('menuDrawer');
     const menuOverlay = document.getElementById('menuOverlay');
@@ -107,53 +117,96 @@
     const drawerLogoutBtn = document.getElementById('drawerLogoutBtn');
 
     function openMenu() {
-      menuDrawer.classList.add('open');
-      menuOverlay.classList.add('open');
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.add('open');
+        menuOverlay.classList.add('open');
+      }
     }
 
     function closeMenu() {
-      menuDrawer.classList.remove('open');
-      menuOverlay.classList.remove('open');
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.remove('open');
+        menuOverlay.classList.remove('open');
+      }
     }
 
     if (hamburgerBtn) hamburgerBtn.onclick = openMenu;
     if (closeMenuBtn) closeMenuBtn.onclick = closeMenu;
     if (menuOverlay) menuOverlay.onclick = closeMenu;
 
-    // 로그아웃 버튼 confirm
     if (drawerLogoutBtn) {
-      drawerLogoutBtn.onclick = async () => {
+      drawerLogoutBtn.onclick = () => {
         if (confirm('정말 나갈거에요?')) {
+          // Firebase signOut 시도, 실패 시 강제 이동
           try {
-            await signOut(auth);
+            import('./firebase.js').then(({ auth }) => {
+              import('https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js').then(({ signOut }) => {
+                signOut(auth).then(() => {
+                  window.location.href = 'login.html';
+                }).catch(() => {
+                  window.location.href = 'login.html';
+                });
+              }).catch(() => {
+                window.location.href = 'login.html';
+              });
+            }).catch(() => {
+              window.location.href = 'login.html';
+            });
+          } catch {
             window.location.href = 'login.html';
-          } catch (error) {
-            console.error('로그아웃 오류:', error);
           }
         }
       };
     }
-
-    // 메인 메뉴 렌더링 (로그아웃 상태용)
-    function renderMainMenu() {
-      const menu = document.getElementById('mainMenu');
-      const welcome = document.getElementById('welcomeMsg');
-      if (!menu) return;
-
-      menu.innerHTML = '';
-      welcome.innerHTML = '';
-
-      // 로그인 버튼
-      const loginBtn = document.createElement('button');
-      loginBtn.textContent = '로그인';
-      loginBtn.onclick = () => location.href = 'login.html';
-      menu.appendChild(loginBtn);
-
-      // 회원가입 버튼
-      const signupBtn = document.createElement('button');
-      signupBtn.textContent = '회원가입';
-      signupBtn.onclick = () => location.href = 'signup.html';
-      menu.appendChild(signupBtn);
+    
+    // Firebase 연결 시도
+    try {
+      // Firebase 모듈 로드 시도
+      import('./firebase.js').then(({ auth }) => {
+        import('https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js').then(({ onAuthStateChanged, signOut }) => {
+          console.log('Firebase 로드 성공');
+          
+          // 실제 인증 상태 확인
+          onAuthStateChanged(auth, (user) => {
+            const menu = document.getElementById('mainMenu');
+            const welcome = document.getElementById('welcomeMsg');
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            const adminMenuBtn = document.getElementById('adminMenuBtn');
+            
+            if (user) {
+              // 로그인 시
+              if (hamburgerBtn) hamburgerBtn.style.display = 'flex';
+              if (menu) menu.style.display = 'none';
+              
+              let userId = user.displayName || (user.email ? user.email.split('@')[0] : '');
+              if (welcome) welcome.innerHTML = `<b>${userId}</b>님 환영합니다!`;
+              if (adminMenuBtn) adminMenuBtn.style.display = (userId === 'difains') ? 'block' : 'none';
+            } else {
+              // 로그아웃 시 - 기본 버튼 표시
+              if (hamburgerBtn) hamburgerBtn.style.display = 'none';
+              if (menu) {
+                menu.style.display = 'flex';
+                menu.innerHTML = `
+                  <button onclick="location.href='login.html'">로그인</button>
+                  <button onclick="location.href='signup.html'">회원가입</button>
+                `;
+              }
+              if (welcome) welcome.innerHTML = '';
+              if (adminMenuBtn) adminMenuBtn.style.display = 'none';
+            }
+          });
+        }).catch(error => {
+          console.error('Firebase Auth 로드 실패:', error);
+          // Firebase Auth 로드 실패 시에도 기본 버튼 유지
+        });
+      }).catch(error => {
+        console.error('Firebase 로드 실패:', error);
+        // Firebase 로드 실패 시에도 기본 버튼 유지
+      });
+    } catch (error) {
+      console.error('모듈 로드 오류:', error);
+      // 오류 시에도 기본 버튼 유지
     }
-
-    // 인증 상태에 따라
+  </script>
+</body>
+</html>
