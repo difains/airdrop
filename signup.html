@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>회원가입 | 코인 에어드랍 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .signup-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
+    .signup-form { display:flex; flex-direction:column; gap:14px; }
+    .signup-form input { font-size:1em; padding:12px; border-radius:6px; border:1px solid #ddd; }
+    .signup-form button { font-size:1.1em; padding:13px; border-radius:8px; border:none; background:#4a90e2; color:#fff; font-weight:600; transition:background 0.2s; }
+    .signup-form button:hover { background:#3576c9; }
+    .signup-footer { text-align:center; margin-top:22px; }
+    .signup-footer a { color:#4a90e2; text-decoration:none; font-weight:500; }
+    .signup-footer a:hover { text-decoration:underline; }
+    @media (max-width:600px) {
+      .signup-title { font-size:1.2em; }
+      .signup-form button { font-size:1em; padding:11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="signup-title">회원가입</div>
+    <form id="signupForm" class="signup-form" autocomplete="on">
+      <input type="text" id="signupId" placeholder="아이디 (영문/숫자 4~20자)" maxlength="20" required pattern="[A-Za-z0-9]{4,20}">
+      <input type="password" id="signupPw" placeholder="비밀번호 (영문+숫자, 6~20자)" maxlength="20" required>
+      <input type="email" id="signupEmail" placeholder="이메일 주소" maxlength="40" required>
+      <button type="submit">회원가입</button>
+    </form>
+    <div class="signup-footer">
+      이미 계정이 있으신가요? <a href="login.html">로그인</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { setDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    // 아이디를 이메일로 변환하는 함수 (예: myid → myid@example.com)
+    function idToEmail(id) {
+      // 실제 서비스에서는 이메일을 직접 입력받거나, 도메인 정책에 맞게 변환
+      return id + "@example.com";
+    }
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('signupId').value.trim();
+      const pw = document.getElementById('signupPw').value;
+      const email = document.getElementById('signupEmail').value.trim();
+
+      // 아이디, 비밀번호, 이메일 유효성 검사
+      if (!/^[A-Za-z0-9]{4,20}$/.test(id)) {
+        alert('아이디는 영문/숫자 4~20자로 입력하세요.');
+        return;
+      }
+      if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,20}$/.test(pw)) {
+        alert('비밀번호는 영문+숫자 조합 6~20자로 입력하세요.');
+        return;
+      }
+      if (!/^[\w\.-]+@[\w\.-]+\.\w+$/.test(email)) {
+        alert('올바른 이메일 주소를 입력하세요.');
+        return;
+      }
+
+      try {
+        // 파이어베이스 회원가입 (이메일은 입력값 사용)
+        const userCredential = await createUserWithEmailAndPassword(auth, email, pw);
+
+        // displayName에 id 저장
+        await updateProfile(userCredential.user, { displayName: id });
+
+        // Firestore에 사용자 정보 저장 (예시)
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          id: id,
+          email: email,
+          createdAt: new Date()
+        });
+
+        alert('회원가입이 완료되었습니다! 로그인 해주세요.');
+        window.location.href = "login.html";
+      } catch (err) {
+        let msg = '회원가입 실패: ';
+        if (err.code === 'auth/email-already-in-use') msg += '이미 사용 중인 이메일입니다.';
+        else if (err.code === 'auth/weak-password') msg += '비밀번호가 너무 약합니다.';
+        else msg += err.message;
+        alert(msg);
+      }
+    });
+  </script>
+</body>
+</html>

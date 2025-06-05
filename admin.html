@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>에어드랍 일정관리 | 코인 에어드랍 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
+    .admin-form { display:flex; flex-direction:column; gap:12px; margin-bottom:25px; }
+    .admin-form input { font-size:1em; padding:10px; border-radius:6px; border:1px solid #ddd; }
+    .admin-form button { font-size:1.1em; padding:12px; border-radius:8px; border:none; background:#4a90e2; color:#fff; font-weight:600; transition:background 0.2s; }
+    .admin-form button:hover { background:#3576c9; }
+    .admin-list { margin-top:10px; }
+    .admin-table { width:100%; border-collapse:collapse; background:#fff; }
+    .admin-table th, .admin-table td { padding:9px 5px; border-bottom:1px solid #eee; text-align:center; font-size:0.98em; }
+    .admin-table th { background:#f3f6fa; }
+    .admin-table button { padding:6px 14px; border-radius:6px; border:none; margin:0 2px; font-size:0.97em; }
+    .admin-table .edit { background:#f5a623; color:#fff; }
+    .admin-table .delete { background:#e94e77; color:#fff; }
+    @media (max-width:600px) {
+      .admin-title { font-size:1.2em; }
+      .admin-table th, .admin-table td { font-size:0.93em; padding:7px 2px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="admin-title">코인 에어드랍 일정관리 (관리자)</div>
+    <form id="airdropForm" class="admin-form" autocomplete="off">
+      <input type="hidden" id="airdropId">
+      <input type="text" id="coinName" placeholder="코인명" maxlength="20" required>
+      <input type="date" id="startDate" required>
+      <input type="date" id="endDate" required>
+      <input type="date" id="rewardDate" required>
+      <button type="submit" id="submitBtn">등록</button>
+      <button type="button" id="cancelEditBtn" style="display:none;background:#aaa;">취소</button>
+    </form>
+    <div class="admin-list">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>코인명</th>
+            <th>시작일</th>
+            <th>종료일</th>
+            <th>지급일</th>
+            <th>수정/삭제</th>
+          </tr>
+        </thead>
+        <tbody id="airdropList">
+          <!-- JS에서 렌더링 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SweetAlert2 for alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { collection, getDocs, addDoc, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    let isAdmin = false;
+    let userId = null;
+
+    // 관리자 체크: displayName 또는 이메일의 @앞부분이 difains인지 확인
+    function checkAdmin(user) {
+      if (!user) return false;
+      let id = user.displayName;
+      if (!id && user.email) id = user.email.split('@')[0];
+      return id === 'difains';
+    }
+
+    // 에어드랍 일정 불러오기
+    async function loadAirdrops() {
+      const listEl = document.getElementById('airdropList');
+      listEl.innerHTML = '<tr><td colspan="5">로딩 중...</td></tr>';
+      const q = collection(db, "airdrops");
+      const docsnap = await getDocs(q);
+      let rows = '';
+      docsnap.forEach(docu => {
+        const d = docu.data();
+        rows += `
+          <tr>
+            <td>${d.coinName || '-'}</td>
+            <td>${d.startDate || '-'}</td>
+            <td>${d.endDate || '-'}</td>
+            <td>${d.rewardDate || '-'}</td>
+            <td>
+              <button class="edit" data-id="${docu.id}">수정</button>
+              <button class="delete" data-id="${docu.id}">삭제</button>
+            </td>
+          </tr>
+        `;
+      });
+      listEl.innerHTML = rows || '<tr><td colspan="5">등록된 일정이 없습니다.</td></tr>';
+
+      // 수정/삭제 이벤트 바인딩
+      docsnap.forEach(docu => {
+        const d = docu.data();
+        // 수정
+        document.querySelector(`.edit[data-id="${docu.id}"]`).onclick = () => {
+          document.getElementById('airdropId').value = docu.id;
+          document.getElementById('coinName').value = d.coinName || '';
+          document.getElementById('startDate').value = d.startDate || '';
+          document.getElementById('endDate').value = d.endDate || '';
+          document.getElementById('rewardDate').value = d.rewardDate || '';
+          document.getElementById('submitBtn').textContent = '수정';
+          document.getElementById('cancelEditBtn').style.display = '';
+        };
+        // 삭제
+        document.querySelector(`.delete[data-id="${docu.id}"]`).onclick = async () => {
+          const ok = await Swal.fire({
+            title: '삭제 확인',
+            text: '정말 삭제하시겠습니까?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '삭제',
+            cancelButtonText: '취소'
+          });
+          if (ok.isConfirmed) {
+            await deleteDoc(doc(db, "airdrops", docu.id));
+            Swal.fire('삭제 완료', '', 'success');
+            loadAirdrops();
+          }
+        };
+      });
+    }
+
+    // 등록/수정 폼 제출
+    document.getElementById('airdropForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('airdropId').value;
+      const coinName = document.getElementById('coinName').value.trim();
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const rewardDate = document.getElementById('rewardDate').value;
+      if (!coinName || !startDate || !endDate || !rewardDate) {
+        Swal.fire('입력 오류', '모든 항목을 입력하세요.', 'warning');
+        return;
+      }
+      if (startDate > endDate) {
+        Swal.fire('입력 오류', '시작일은 종료일 이전이어야 합니다.', 'warning');
+        return;
+      }
+      const data = { coinName, startDate, endDate, rewardDate };
+      if (id) {
+        // 수정
+        await setDoc(doc(db, "airdrops", id), data);
+        Swal.fire('수정 완료', '', 'success');
+      } else {
+        // 등록
+        await addDoc(collection(db, "airdrops"), data);
+        Swal.fire('등록 완료', '', 'success');
+      }
+      // 폼 리셋
+      document.getElementById('airdropForm').reset();
+      document.getElementById('airdropId').value = '';
+      document.getElementById('submitBtn').textContent = '등록';
+      document.getElementById('cancelEditBtn').style.display = 'none';
+      loadAirdrops();
+    });
+
+    // 수정 취소
+    document.getElementById('cancelEditBtn').onclick = () => {
+      document.getElementById('airdropForm').reset();
+      document.getElementById('airdropId').value = '';
+      document.getElementById('submitBtn').textContent = '등록';
+      document.getElementById('cancelEditBtn').style.display = 'none';
+    };
+
+    // 인증 및 관리자 체크
+    onAuthStateChanged(auth, user => {
+      if (!checkAdmin(user)) {
+        Swal.fire('슈퍼관리자만 접근할 수 있습니다.', '', 'error').then(() => {
+          location.href = "index.html";
+        });
+        return;
+      }
+      userId = user.uid;
+      isAdmin = true;
+      loadAirdrops();
+    });
+  </script>
+</body>
+</html>

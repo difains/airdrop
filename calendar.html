@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>에어드랍 참여 캘린더 | 코인 에어드랍 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css">
+  <style>
+    .cal-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
+    #calendar { max-width: 100%; margin: 0 auto; background:#fff; border-radius:12px; box-shadow:0 2px 8px #0001; }
+    .fc-toolbar-title { font-size:1.2em; }
+    .fc-daygrid-event { font-size:0.97em; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:0.93em; color:#fff; }
+    .badge.done { background:#4a90e2; }
+    .badge.ing { background:#f5a623; }
+    /* 팝업 스타일 */
+    .modal-bg { position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0008; z-index:1000; display:flex; align-items:center; justify-content:center; }
+    .modal { background:#fff; padding:24px 18px; border-radius:12px; max-width:350px; width:95vw; box-shadow:0 4px 16px #0002; }
+    .modal h3 { margin-top:0; margin-bottom:18px; font-size:1.2em; }
+    .modal label { display:block; margin-top:10px; margin-bottom:4px; font-weight:500; }
+    .modal input, .modal select { width:100%; padding:8px; margin-bottom:7px; border-radius:6px; border:1px solid #ddd; }
+    .modal .days-checkbox { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .modal .days-checkbox label { font-weight:400; font-size:0.98em; margin-right:8px; }
+    .modal .modal-btns { display:flex; gap:10px; margin-top:14px; }
+    .modal .modal-btns button { flex:1; padding:11px; border-radius:7px; border:none; font-size:1em; }
+    .modal .modal-btns .save { background:#4a90e2; color:#fff; }
+    .modal .modal-btns .cancel { background:#aaa; color:#fff; }
+    @media (max-width:600px) {
+      .cal-title { font-size:1.2em; }
+      .modal { padding:14px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="cal-title">코인 에어드랍 참여 (캘린더)</div>
+    <div id="calendar"></div>
+  </div>
+
+  <!-- FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
+  <!-- SweetAlert2 for alerts (optional, for better UX) -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { collection, getDocs, setDoc, doc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    let userId = null;
+    let coins = []; // 참여 가능한 코인명 목록 (관리자가 Firestore에 등록했다고 가정)
+
+    // 참여기록 불러오기
+    async function getParticipations(uid) {
+      const q = collection(db, "users", uid, "participations");
+      const docsnap = await getDocs(q);
+      let list = [];
+      docsnap.forEach(doc => {
+        let d = doc.data();
+        d.id = doc.id;
+        d.startDate = d.startDate ? new Date(d.startDate) : null;
+        d.endDate = d.endDate ? new Date(d.endDate) : null;
+        d.rewardDate = d.rewardDate ? new Date(d.rewardDate) : null;
+        list.push(d);
+      });
+      return list;
+    }
+
+    // 코인명 목록 불러오기 (admin이 등록한 airdrops 컬렉션에서)
+    async function getCoinNames() {
+      const q = collection(db, "airdrops");
+      const docsnap = await getDocs(q);
+      let names = [];
+      docsnap.forEach(doc => {
+        let d = doc.data();
+        if (d.coinName) names.push({ name: d.coinName, ...d });
+      });
+      return names;
+    }
+
+    // 캘린더 이벤트 생성
+    function makeEvents(participations) {
+      let events = [];
+      participations.forEach(p => {
+        // 참여 진행상태 뱃지
+        const days = p.days || 0;
+        const checked = Array.isArray(p.checkedDays) ? p.checkedDays.length : 0;
+        const isDone = (checked === days && days > 0);
+        const badge = isDone
+          ? '<span class="badge done">참여완료</span>'
+          : '<span class="badge ing">진행중</span>';
+        // 참여기간 이벤트
+        events.push({
+          id: p.id,
+          title: `${p.coinName} ${badge}`,
+          start: p.startDate,
+          end: p.endDate ? new Date(new Date(p.endDate).getTime() + 24*60*60*1000) : undefined, // FullCalendar end는 exclusive
+          allDay: true,
+          extendedProps: { ...p }
+        });
+        // 지급일 이벤트
+        if (p.rewardDate) {
+          events.push({
+            id: p.id + '-reward',
+            title: `${p.coinName} 지급일`,
+            start: p.rewardDate,
+            allDay: true,
+            color: "#f5a623"
+          });
+        }
+      });
+      return events;
+    }
+
+    // 팝업 생성
+    function showModal({mode, data, coinNames, onSave, onCancel}) {
+      // mode: 'add' or 'edit'
+      // data: {coinName, startDate, endDate, checkedDays, rewardDate, profit}
+      // coinNames: [{name, ...}]
+      // onSave: callback(data)
+      // onCancel: callback()
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      let days = 0;
+      let checkedDays = [];
+      let startDate = data.startDate ? new Date(data.startDate) : null;
+      let endDate = data.endDate ? new Date(data.endDate) : null;
+      if (Array.isArray(data.checkedDays)) checkedDays = [...data.checkedDays];
+
+      function getDaysArray(start, end) {
+        let arr = [];
+        if (!start || !end) return arr;
+        let cur = new Date(start);
+        let i = 1;
+        while (cur <= end) {
+          arr.push({ label: `${i}일차 (${cur.toISOString().slice(0,10)})`, value: i, date: new Date(cur) });
+          cur.setDate(cur.getDate() + 1);
+          i++;
+        }
+        return arr;
+      }
+
+      function renderDaysCheckbox() {
+        const wrap = bg.querySelector('.days-checkbox');
+        wrap.innerHTML = '';
+        const daysArr = getDaysArray(
+          new Date(bg.querySelector('#startDate').value),
+          new Date(bg.querySelector('#endDate').value)
+        );
+        days = daysArr.length;
+        daysArr.forEach(d => {
+          const id = `chkday${d.value}`;
+          const checked = checkedDays.includes(d.value);
+          wrap.innerHTML += `<label><input type="checkbox" id="${id}" value="${d.value}" ${checked ? 'checked' : ''}> ${d.label}</label>`;
+        });
+        // 체크박스 이벤트
+        daysArr.forEach(d => {
+          const chk = bg.querySelector(`#chkday${d.value}`);
+          chk && chk.addEventListener('change', e => {
+            if (e.target.checked) {
+              if (!checkedDays.includes(d.value)) checkedDays.push(d.value);
+            } else {
+              checkedDays = checkedDays.filter(v => v !== d.value);
+            }
+          });
+        });
+      }
+
+      bg.innerHTML = `
+        <div class="modal">
+          <h3>${mode === 'add' ? '참여 등록' : '참여 수정'}</h3>
+          <label for="coinName">코인명</label>
+          <select id="coinName" ${mode === 'edit' ? 'disabled' : ''} required>
+            <option value="">선택</option>
+            ${coinNames.map(c => `<option value="${c.name}" ${data.coinName === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+          <label for="startDate">시작일</label>
+          <input type="date" id="startDate" value="${data.startDate ? data.startDate.toISOString().slice(0,10) : ''}" required>
+          <label for="endDate">종료일</label>
+          <input type="date" id="endDate" value="${data.endDate ? data.endDate.toISOString().slice(0,10) : ''}" required>
+          <div class="days-checkbox"></div>
+          <label for="rewardDate">지급일</label>
+          <input type="date" id="rewardDate" value="${data.rewardDate ? data.rewardDate.toISOString().slice(0,10) : ''}">
+          <label for="profit">최종 수익 (원)</label>
+          <input type="number" id="profit" value="${data.profit || ''}" min="0" placeholder="0">
+          <div class="modal-btns">
+            <button class="save">${mode === 'add' ? '등록' : '수정'}</button>
+            <button class="cancel">취소</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(bg);
+
+      // 날짜/코인명 변경 시 체크박스 갱신
+      bg.querySelector('#startDate').addEventListener('change', renderDaysCheckbox);
+      bg.querySelector('#endDate').addEventListener('change', renderDaysCheckbox);
+
+      renderDaysCheckbox();
+
+      // 저장
+      bg.querySelector('.save').onclick = () => {
+        const coinName = bg.querySelector('#coinName').value;
+        const startDate = bg.querySelector('#startDate').value;
+        const endDate = bg.querySelector('#endDate').value;
+        const rewardDate = bg.querySelector('#rewardDate').value;
+        const profit = bg.querySelector('#profit').value;
+        // checkedDays: 체크된 일차
+        const daysArr = getDaysArray(new Date(startDate), new Date(endDate));
+        const checked = [];
+        daysArr.forEach(d => {
+          const chk = bg.querySelector(`#chkday${d.value}`);
+          if (chk && chk.checked) checked.push(d.value);
+        });
+        if (!coinName || !startDate || !endDate) {
+          Swal.fire('입력오류', '코인명, 시작일, 종료일을 입력하세요.', 'warning');
+          return;
+        }
+        if (new Date(startDate) > new Date(endDate)) {
+          Swal.fire('입력오류', '시작일은 종료일 이전이어야 합니다.', 'warning');
+          return;
+        }
+        onSave({
+          coinName,
+          startDate,
+          endDate,
+          days: daysArr.length,
+          checkedDays: checked,
+          rewardDate: rewardDate || null,
+          profit: profit ? Number(profit) : 0
+        });
+        document.body.removeChild(bg);
+      };
+      // 취소
+      bg.querySelector('.cancel').onclick = () => {
+        document.body.removeChild(bg);
+        onCancel && onCancel();
+      };
+    }
+
+    // 캘린더 렌더링
+    async function renderCalendar(uid) {
+      coins = await getCoinNames();
+      let participations = await getParticipations(uid);
+
+      let calendarEl = document.getElementById('calendar');
+      let calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'ko',
+        height: 'auto',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: ''
+        },
+        events: makeEvents(participations),
+        eventClick: function(info) {
+          // 지급일 이벤트는 수정 불가
+          if (info.event.id.endsWith('-reward')) return;
+          const p = participations.find(x => x.id === info.event.id);
+          showModal({
+            mode: 'edit',
+            data: p,
+            coinNames: coins,
+            onSave: async (newData) => {
+              // 참여기록 수정
+              await setDoc(doc(db, "users", uid, "participations", p.id), {
+                ...p,
+                ...newData
+              });
+              Swal.fire('수정 완료', '참여 정보가 수정되었습니다.', 'success');
+              // 새로고침
+              participations = await getParticipations(uid);
+              calendar.removeAllEvents();
+              calendar.addEventSource(makeEvents(participations));
+            }
+          });
+        },
+        dateClick: function(info) {
+          // 빈 날짜 클릭: 참여 등록
+          showModal({
+            mode: 'add',
+            data: { startDate: info.dateStr, endDate: info.dateStr, checkedDays: [] },
+            coinNames: coins,
+            onSave: async (newData) => {
+              // 참여기록 등록
+              await addDoc(collection(db, "users", uid, "participations"), newData);
+              Swal.fire('등록 완료', '참여가 등록되었습니다.', 'success');
+              participations = await getParticipations(uid);
+              calendar.removeAllEvents();
+              calendar.addEventSource(makeEvents(participations));
+            }
+          });
+        }
+      });
+      calendar.render();
+    }
+
+    // 인증 체크 및 캘린더 시작
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        Swal.fire('로그인이 필요합니다.', '', 'info').then(() => {
+          location.href = "login.html";
+        });
+        return;
+      }
+      userId = user.uid;
+      renderCalendar(userId);
+    });
+  </script>
+</body>
+</html>

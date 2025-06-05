@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>코인 에어드랍 관리 대시보드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .main-logo { text-align:center; margin-bottom:24px; }
+    .main-logo img { width:64px; height:64px; }
+    .main-title { text-align:center; font-size:2em; font-weight:700; margin-bottom:12px; }
+    .main-desc { text-align:center; color:#666; margin-bottom:32px; }
+    .main-menu { display:flex; flex-direction:column; gap:14px; }
+    .main-menu button { font-size:1.1em; padding:16px; border-radius:8px; border:none; background:#4a90e2; color:#fff; font-weight:600; transition:background 0.2s; }
+    .main-menu button:hover { background:#3576c9; }
+    .main-footer { text-align:center; color:#aaa; margin-top:42px; font-size:0.95em; }
+    @media (max-width: 600px) {
+      .main-title { font-size:1.3em; }
+      .main-menu button { font-size:1em; padding:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="main-logo">
+      <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="코인 에어드랍 로고">
+    </div>
+    <div class="main-title">코인 에어드랍 참여 관리</div>
+    <div class="main-desc">
+      에어드랍 일정 관리, 참여 체크, 수익 집계까지<br>
+      한눈에 쉽고 편리하게!
+    </div>
+    <div id="welcomeMsg" style="text-align:center; margin-bottom:18px;"></div>
+    <div class="main-menu" id="mainMenu">
+      <!-- JS에서 버튼 렌더링 -->
+    </div>
+    <div class="main-footer">
+      &copy; 2025 코인 에어드랍 관리
+    </div>
+  </div>
+
+  <!-- Firebase 및 app.js 로드 -->
+  <script type="module">
+    import { auth } from './firebase.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+    // 메뉴 버튼 생성 함수
+    function renderMenu(isLogin, isAdmin, userId) {
+      const menu = document.getElementById('mainMenu');
+      const welcome = document.getElementById('welcomeMsg');
+      menu.innerHTML = '';
+      if (isLogin) {
+        welcome.innerHTML = `<b>${userId}</b>님 환영합니다!`;
+        // 대시보드
+        const dashBtn = document.createElement('button');
+        dashBtn.textContent = '대시보드';
+        dashBtn.onclick = () => location.href = 'dashboard.html';
+        menu.appendChild(dashBtn);
+        // 캘린더
+        const calBtn = document.createElement('button');
+        calBtn.textContent = '에어드랍 참여 (캘린더)';
+        calBtn.onclick = () => location.href = 'calendar.html';
+        menu.appendChild(calBtn);
+        // 관리자 메뉴
+        if (isAdmin) {
+          const adminBtn = document.createElement('button');
+          adminBtn.textContent = '에어드랍 일정관리 (관리자)';
+          adminBtn.onclick = () => location.href = 'admin.html';
+          menu.appendChild(adminBtn);
+        }
+        // 로그아웃
+        const logoutBtn = document.createElement('button');
+        logoutBtn.textContent = '로그아웃';
+        logoutBtn.style.background = '#aaa';
+        logoutBtn.onclick = async () => {
+          await signOut(auth);
+          location.reload();
+        };
+        menu.appendChild(logoutBtn);
+      } else {
+        welcome.innerHTML = '';
+        // 로그인
+        const loginBtn = document.createElement('button');
+        loginBtn.textContent = '로그인';
+        loginBtn.onclick = () => location.href = 'login.html';
+        menu.appendChild(loginBtn);
+        // 회원가입
+        const signupBtn = document.createElement('button');
+        signupBtn.textContent = '회원가입';
+        signupBtn.onclick = () => location.href = 'signup.html';
+        menu.appendChild(signupBtn);
+      }
+    }
+
+    // 인증 상태 체크 및 메뉴 렌더링
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // 관리자 여부: 아이디가 difains인지
+        // Firestore에 아이디 저장/매핑하는 로직이 있다면 user.displayName 또는 user.uid로 확인
+        // 여기선 이메일의 @앞부분을 아이디로 사용(예시)
+        const email = user.email || '';
+        const userId = email.split('@')[0];
+        const isAdmin = (userId === 'difains');
+        renderMenu(true, isAdmin, userId);
+      } else {
+        renderMenu(false, false, null);
+      }
+    });
+  </script>
+</body>
+</html>

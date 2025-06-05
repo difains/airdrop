@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>대시보드 | 코인 에어드랍 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .dash-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
+    .dash-controls { display:flex; justify-content:center; gap:10px; margin-bottom:22px; flex-wrap:wrap; }
+    .dash-controls select { font-size:1em; padding:6px 12px; border-radius:6px; border:1px solid #ddd; }
+    .dash-summary { text-align:center; margin-bottom:20px; }
+    .dash-summary span { font-size:2em; font-weight:700; color:#4a90e2; }
+    .dash-table { width:100%; border-collapse:collapse; background:#fff; }
+    .dash-table th, .dash-table td { padding:9px 5px; border-bottom:1px solid #eee; text-align:center; font-size:0.98em; }
+    .dash-table th { background:#f3f6fa; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:0.93em; color:#fff; }
+    .badge.done { background:#4a90e2; }
+    .badge.ing { background:#f5a623; }
+    @media (max-width:600px) {
+      .dash-title { font-size:1.2em; }
+      .dash-summary span { font-size:1.3em; }
+      .dash-table th, .dash-table td { font-size:0.93em; padding:7px 2px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="dash-title">대시보드</div>
+    <div class="dash-controls">
+      <select id="yearSelect"></select>
+      <select id="monthSelect"></select>
+    </div>
+    <div class="dash-summary">
+      총 수익: <span id="totalProfit">0</span> 원
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="dash-table">
+        <thead>
+          <tr>
+            <th>코인명</th>
+            <th>시작일</th>
+            <th>종료일</th>
+            <th>참여일수</th>
+            <th>참여완료여부</th>
+            <th>수익</th>
+          </tr>
+        </thead>
+        <tbody id="dashboardBody">
+          <!-- JS에서 데이터 렌더링 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    // 연도/월 select 옵션 생성
+    function fillYearMonth() {
+      const now = new Date();
+      const yearSel = document.getElementById('yearSelect');
+      const monthSel = document.getElementById('monthSelect');
+      yearSel.innerHTML = '';
+      monthSel.innerHTML = '<option value="all">전체</option>';
+      for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) {
+        yearSel.innerHTML += `<option value="${y}">${y}년</option>`;
+      }
+      for (let m = 1; m <= 12; m++) {
+        monthSel.innerHTML += `<option value="${m}">${m}월</option>`;
+      }
+      yearSel.value = now.getFullYear();
+      monthSel.value = now.getMonth() + 1;
+    }
+
+    // Firestore에서 참여 기록 불러오기 (예시 구조: users/{uid}/participations/{doc})
+    async function loadDashboard(uid, year, month) {
+      const tbody = document.getElementById('dashboardBody');
+      tbody.innerHTML = '<tr><td colspan="6">로딩 중...</td></tr>';
+      let totalProfit = 0;
+      let rows = '';
+
+      // 참여기록 예시: users/{uid}/participations/{docId}
+      // doc: { coinName, startDate, endDate, profit, days, checkedDays: [1,2,3...], rewardDate }
+      let q = collection(db, "users", uid, "participations");
+      const docs = await getDocs(q);
+      let list = [];
+      docs.forEach(doc => {
+        let d = doc.data();
+        // 날짜 파싱
+        d.startDate = d.startDate ? new Date(d.startDate) : null;
+        d.endDate = d.endDate ? new Date(d.endDate) : null;
+        list.push(d);
+      });
+
+      // 연도/월 필터
+      if (year !== 'all') {
+        list = list.filter(d => d.startDate && d.startDate.getFullYear() == year);
+      }
+      if (month !== 'all') {
+        list = list.filter(d => d.startDate && (d.startDate.getMonth() + 1) == month);
+      }
+
+      // 정렬 (최신순)
+      list.sort((a, b) => b.startDate - a.startDate);
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">참여 기록이 없습니다.</td></tr>';
+        document.getElementById('totalProfit').textContent = '0';
+        return;
+      }
+
+      list.forEach(d => {
+        const days = d.days || 0;
+        const checked = Array.isArray(d.checkedDays) ? d.checkedDays.length : 0;
+        const isDone = (checked === days && days > 0);
+        const badge = isDone
+          ? '<span class="badge done">참여완료</span>'
+          : '<span class="badge ing">진행중</span>';
+        const profit = d.profit ? Number(d.profit) : 0;
+        totalProfit += profit;
+        rows += `
+          <tr>
+            <td>${d.coinName || '-'}</td>
+            <td>${d.startDate ? d.startDate.toISOString().slice(0,10) : '-'}</td>
+            <td>${d.endDate ? d.endDate.toISOString().slice(0,10) : '-'}</td>
+            <td>${days}</td>
+            <td>${badge}</td>
+            <td>${profit.toLocaleString()}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = rows;
+      document.getElementById('totalProfit').textContent = totalProfit.toLocaleString();
+    }
+
+    // 인증 후 대시보드 표시
+    function initDashboard(uid) {
+      fillYearMonth();
+      const yearSel = document.getElementById('yearSelect');
+      const monthSel = document.getElementById('monthSelect');
+      const load = () => loadDashboard(uid, yearSel.value, monthSel.value);
+      yearSel.addEventListener('change', load);
+      monthSel.addEventListener('change', load);
+      load();
+    }
+
+    // 인증 체크
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        alert('로그인이 필요합니다.');
+        location.href = "login.html";
+        return;
+      }
+      initDashboard(user.uid);
+    });
+  </script>
+</body>
+</html>

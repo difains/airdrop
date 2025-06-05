@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>로그인 | 코인 에어드랍 관리</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .login-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
+    .login-form { display:flex; flex-direction:column; gap:14px; }
+    .login-form input { font-size:1em; padding:12px; border-radius:6px; border:1px solid #ddd; }
+    .login-form button { font-size:1.1em; padding:13px; border-radius:8px; border:none; background:#4a90e2; color:#fff; font-weight:600; transition:background 0.2s; }
+    .login-form button:hover { background:#3576c9; }
+    .login-footer { text-align:center; margin-top:22px; }
+    .login-footer a { color:#4a90e2; text-decoration:none; font-weight:500; }
+    .login-footer a:hover { text-decoration:underline; }
+    @media (max-width:600px) {
+      .login-title { font-size:1.2em; }
+      .login-form button { font-size:1em; padding:11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="login-title">로그인</div>
+    <form id="loginForm" class="login-form" autocomplete="on">
+      <input type="text" id="loginId" placeholder="아이디" maxlength="20" required autofocus>
+      <input type="password" id="loginPw" placeholder="비밀번호" maxlength="20" required>
+      <button type="submit">로그인</button>
+    </form>
+    <div class="login-footer">
+      아직 회원이 아니신가요? <a href="signup.html">회원가입</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth } from './firebase.js';
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+    // 아이디를 이메일로 변환하는 함수 (예: myid → myid@yourdomain.com)
+    function idToEmail(id) {
+      // 실제 서비스에서는 회원가입 시 email과 id를 매핑하여 저장해야 함
+      // 여기서는 예시로 "@example.com"을 붙입니다.
+      return id + "@example.com";
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('loginId').value.trim();
+      const pw = document.getElementById('loginPw').value;
+      if (!id || !pw) {
+        alert('아이디와 비밀번호를 입력해주세요.');
+        return;
+      }
+      try {
+        const email = idToEmail(id);
+        await signInWithEmailAndPassword(auth, email, pw);
+        // 로그인 성공 시 메인으로 이동
+        window.location.href = "index.html";
+      } catch (err) {
+        alert('로그인 실패: 아이디 또는 비밀번호를 확인하세요.');
+      }
+    });
+  </script>
+</body>
+</html>
