@@ -6,17 +6,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
   <link rel="stylesheet" href="style.css">
   <style>
-    .login-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
-    .login-form { display:flex; flex-direction:column; gap:14px; }
-    .login-form input { font-size:1em; padding:12px; border-radius:6px; border:1px solid #ddd; }
-    .login-form button { font-size:1.1em; padding:13px; border-radius:8px; border:none; background:#4a90e2; color:#fff; font-weight:600; transition:background 0.2s; }
-    .login-form button:hover { background:#3576c9; }
-    .login-footer { text-align:center; margin-top:22px; }
-    .login-footer a { color:#4a90e2; text-decoration:none; font-weight:500; }
-    .login-footer a:hover { text-decoration:underline; }
-    @media (max-width:600px) {
-      .login-title { font-size:1.2em; }
-      .login-form button { font-size:1em; padding:11px; }
+    .login-title { 
+      text-align: center; 
+      font-size: 1.6em; 
+      font-weight: 700; 
+      margin-bottom: 18px; 
+    }
+    .login-form { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 14px; 
+    }
+    .login-form input { 
+      font-size: 1em; 
+      padding: 12px; 
+      border-radius: 6px; 
+      border: 1px solid #ddd; 
+    }
+    .login-form button { 
+      font-size: 1.1em; 
+      padding: 13px; 
+      border-radius: 8px; 
+      border: none; 
+      background: #4a90e2; 
+      color: #fff; 
+      font-weight: 600; 
+      transition: background 0.2s; 
+    }
+    .login-form button:hover { 
+      background: #3576c9; 
+    }
+    .login-footer { 
+      text-align: center; 
+      margin-top: 22px; 
+    }
+    .login-footer a { 
+      color: #4a90e2; 
+      text-decoration: none; 
+      font-weight: 500; 
+    }
+    .login-footer a:hover { 
+      text-decoration: underline; 
+    }
+    @media (max-width: 600px) {
+      .login-title { 
+        font-size: 1.2em; 
+      }
+      .login-form button { 
+        font-size: 1em; 
+        padding: 11px; 
+      }
     }
   </style>
 </head>
@@ -32,26 +71,41 @@
       아직 회원이 아니신가요? <a href="signup.html">회원가입</a>
     </div>
   </div>
+
   <script type="module">
     import { auth } from './firebase.js';
     import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    function idToEmail(id) { return id + "@example.com"; }
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('loginId').value.trim();
-      const pw = document.getElementById('loginPw').value;
-      if (!id || !pw) {
-        alert('아이디와 비밀번호를 입력해주세요.');
-        return;
-      }
-      try {
-        const email = idToEmail(id);
-        await signInWithEmailAndPassword(auth, email, pw);
-        window.location.href = "index.html";
-      } catch (err) {
-        alert('로그인 실패: 아이디 또는 비밀번호를 확인하세요.');
-      }
-    });
-  </script>
-</body>
-</html>
+
+    // 아이디를 이메일로 변환
+    function idToEmail(id) {
+      return id + "@example.com";
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const idInput = document.getElementById('loginId');
+        const pwInput = document.getElementById('loginPw');
+        
+        if (!idInput || !pwInput) {
+          alert('입력 필드를 찾을 수 없습니다.');
+          return;
+        }
+
+        const id = idInput.value.trim();
+        const pw = pwInput.value;
+
+        if (!id || !pw) {
+          alert('아이디와 비밀번호를 입력해주세요.');
+          return;
+        }
+
+        try {
+          const email = idToEmail(id);
+          await signInWithEmailAndPassword(auth, email, pw);
+          window.location.href = "index.html";
+        } catch (err) {
+          console.error('로그인 오류:', err);
+          if (err.code === 'auth/user-not-found' || err.code ===

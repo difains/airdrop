@@ -6,13 +6,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
   <link rel="stylesheet" href="style.css">
   <style>
-    .main-logo { text-align:center; margin-bottom:24px; }
-    .main-logo img { width:64px; height:64px; }
-    .main-title { text-align:center; font-size:2em; font-weight:700; margin-bottom:12px; }
-    .main-desc { text-align:center; color:#666; margin-bottom:32px; }
-    .main-footer { text-align:center; color:#aaa; margin-top:42px; font-size:0.95em; }
+    .main-logo { 
+      text-align: center; 
+      margin-bottom: 24px; 
+    }
+    .main-logo img { 
+      width: 64px; 
+      height: 64px; 
+    }
+    .main-title { 
+      text-align: center; 
+      font-size: 2em; 
+      font-weight: 700; 
+      margin-bottom: 12px; 
+    }
+    .main-desc { 
+      text-align: center; 
+      color: #666; 
+      margin-bottom: 32px; 
+    }
+    .main-menu { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 14px; 
+    }
+    .main-menu button { 
+      font-size: 1.1em; 
+      padding: 16px; 
+      border-radius: 8px; 
+      border: none; 
+      background: #4a90e2; 
+      color: #fff; 
+      font-weight: 600; 
+      transition: background 0.2s; 
+    }
+    .main-menu button:hover { 
+      background: #3576c9; 
+    }
+    .main-footer { 
+      text-align: center; 
+      color: #aaa; 
+      margin-top: 42px; 
+      font-size: 0.95em; 
+    }
     @media (max-width: 600px) {
-      .main-title { font-size:1.3em; }
+      .main-title { 
+        font-size: 1.3em; 
+      }
+      .main-menu button { 
+        font-size: 1em; 
+        padding: 12px; 
+      }
     }
   </style>
 </head>
@@ -23,6 +67,7 @@
       <span class="hamburger-bar"></span>
       <span class="hamburger-bar"></span>
     </button>
+    
     <div class="main-logo">
       <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="코인 에어드랍 로고">
     </div>
@@ -36,20 +81,23 @@
     <div class="main-footer">
       &copy; 2025 코인 에어드랍 관리
     </div>
-    <!-- 햄버거 메뉴 오버레이/드로어 -->
-    <div class="menu-overlay" id="menuOverlay"></div>
-    <nav class="menu-drawer" id="menuDrawer">
-      <button class="close-btn" id="closeMenuBtn">&times;</button>
-      <div class="menu-title">메뉴</div>
-      <button onclick="location.href='dashboard.html'">대시보드</button>
-      <button onclick="location.href='calendar.html'">에어드랍 참여 (캘린더)</button>
-      <button id="adminMenuBtn" style="display:none;" onclick="location.href='admin.html'">에어드랍 일정관리 (관리자)</button>
-      <button class="logout" id="drawerLogoutBtn">로그아웃</button>
-    </nav>
   </div>
+
+  <!-- 햄버거 메뉴 오버레이/드로어 -->
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <nav class="menu-drawer" id="menuDrawer">
+    <button class="close-btn" id="closeMenuBtn">&times;</button>
+    <div class="menu-title">메뉴</div>
+    <button onclick="location.href='dashboard.html'">대시보드</button>
+    <button onclick="location.href='calendar.html'">에어드랍 참여 (캘린더)</button>
+    <button id="adminMenuBtn" style="display:none;" onclick="location.href='admin.html'">에어드랍 일정관리 (관리자)</button>
+    <button class="logout" id="drawerLogoutBtn">로그아웃</button>
+  </nav>
+
   <script type="module">
     import { auth } from './firebase.js';
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
     // 메뉴 드로어 관련
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const menuDrawer = document.getElementById('menuDrawer');
@@ -57,45 +105,55 @@
     const closeMenuBtn = document.getElementById('closeMenuBtn');
     const adminMenuBtn = document.getElementById('adminMenuBtn');
     const drawerLogoutBtn = document.getElementById('drawerLogoutBtn');
+
     function openMenu() {
       menuDrawer.classList.add('open');
       menuOverlay.classList.add('open');
     }
+
     function closeMenu() {
       menuDrawer.classList.remove('open');
       menuOverlay.classList.remove('open');
     }
-    hamburgerBtn.onclick = openMenu;
-    closeMenuBtn.onclick = closeMenu;
-    menuOverlay.onclick = closeMenu;
+
+    if (hamburgerBtn) hamburgerBtn.onclick = openMenu;
+    if (closeMenuBtn) closeMenuBtn.onclick = closeMenu;
+    if (menuOverlay) menuOverlay.onclick = closeMenu;
+
     // 로그아웃 버튼 confirm
-    drawerLogoutBtn.onclick = async () => {
-      if (confirm('정말 나갈거에요?')) {
-        await signOut(auth);
-        window.location.href = 'login.html';
-      }
-    };
-    // 인증 상태에 따라 메뉴/버튼 표시
-    import { renderMainMenu } from './app.js';
-    onAuthStateChanged(auth, (user) => {
+    if (drawerLogoutBtn) {
+      drawerLogoutBtn.onclick = async () => {
+        if (confirm('정말 나갈거에요?')) {
+          try {
+            await signOut(auth);
+            window.location.href = 'login.html';
+          } catch (error) {
+            console.error('로그아웃 오류:', error);
+          }
+        }
+      };
+    }
+
+    // 메인 메뉴 렌더링 (로그아웃 상태용)
+    function renderMainMenu() {
       const menu = document.getElementById('mainMenu');
       const welcome = document.getElementById('welcomeMsg');
-      if (user) {
-        // 로그인 시 햄버거 버튼, drawer 표시
-        hamburgerBtn.style.display = '';
-        menu.style.display = 'none';
-        let userId = user.displayName || (user.email ? user.email.split('@')[0] : '');
-        welcome.innerHTML = `<b>${userId}</b>님 환영합니다!`;
-        // 관리자 메뉴 표시
-        adminMenuBtn.style.display = (userId === 'difains') ? '' : 'none';
-      } else {
-        // 로그아웃 시 햄버거 버튼 숨김, 기존 메뉴 사용
-        hamburgerBtn.style.display = 'none';
-        menu.style.display = '';
-        adminMenuBtn.style.display = 'none';
-        renderMainMenu();
-      }
-    });
-  </script>
-</body>
-</html>
+      if (!menu) return;
+
+      menu.innerHTML = '';
+      welcome.innerHTML = '';
+
+      // 로그인 버튼
+      const loginBtn = document.createElement('button');
+      loginBtn.textContent = '로그인';
+      loginBtn.onclick = () => location.href = 'login.html';
+      menu.appendChild(loginBtn);
+
+      // 회원가입 버튼
+      const signupBtn = document.createElement('button');
+      signupBtn.textContent = '회원가입';
+      signupBtn.onclick = () => location.href = 'signup.html';
+      menu.appendChild(signupBtn);
+    }
+
+    // 인증 상태에 따라

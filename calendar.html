@@ -7,28 +7,29 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css">
   <style>
-    .cal-title { text-align:center; font-size:1.6em; font-weight:700; margin-bottom:18px; }
-    #calendar { max-width: 100%; margin: 0 auto; background:#fff; border-radius:12px; box-shadow:0 2px 8px #0001; }
-    .fc-toolbar-title { font-size:1.2em; }
-    .fc-daygrid-event { font-size:0.97em; }
-    .badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:0.93em; color:#fff; }
-    .badge.done { background:#4a90e2; }
-    .badge.ing { background:#f5a623; }
-    /* 팝업 스타일 */
-    .modal-bg { position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0008; z-index:1000; display:flex; align-items:center; justify-content:center; }
-    .modal { background:#fff; padding:24px 18px; border-radius:12px; max-width:350px; width:95vw; box-shadow:0 4px 16px #0002; }
-    .modal h3 { margin-top:0; margin-bottom:18px; font-size:1.2em; }
-    .modal label { display:block; margin-top:10px; margin-bottom:4px; font-weight:500; }
-    .modal input, .modal select { width:100%; padding:8px; margin-bottom:7px; border-radius:6px; border:1px solid #ddd; }
-    .modal .days-checkbox { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
-    .modal .days-checkbox label { font-weight:400; font-size:0.98em; margin-right:8px; }
-    .modal .modal-btns { display:flex; gap:10px; margin-top:14px; }
-    .modal .modal-btns button { flex:1; padding:11px; border-radius:7px; border:none; font-size:1em; }
-    .modal .modal-btns .save { background:#4a90e2; color:#fff; }
-    .modal .modal-btns .cancel { background:#aaa; color:#fff; }
-    @media (max-width:600px) {
-      .cal-title { font-size:1.2em; }
-      .modal { padding:14px 6px; }
+    .cal-title { 
+      text-align: center; 
+      font-size: 1.6em; 
+      font-weight: 700; 
+      margin-bottom: 18px; 
+    }
+    #calendar { 
+      max-width: 100%; 
+      margin: 0 auto; 
+      background: #fff; 
+      border-radius: 12px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+    }
+    .fc-toolbar-title { 
+      font-size: 1.2em; 
+    }
+    .fc-daygrid-event { 
+      font-size: 0.97em; 
+    }
+    @media (max-width: 600px) {
+      .cal-title { 
+        font-size: 1.2em; 
+      }
     }
   </style>
 </head>
@@ -39,18 +40,22 @@
       <span class="hamburger-bar"></span>
       <span class="hamburger-bar"></span>
     </button>
+    
     <div class="cal-title">코인 에어드랍 참여 (캘린더)</div>
     <div id="calendar"></div>
+    
     <div class="menu-overlay" id="menuOverlay"></div>
     <nav class="menu-drawer" id="menuDrawer">
       <button class="close-btn" id="closeMenuBtn">&times;</button>
       <div class="menu-title">메뉴</div>
+      <button onclick="location.href='index.html'">홈</button>
       <button onclick="location.href='dashboard.html'">대시보드</button>
       <button class="active" onclick="location.href='calendar.html'">에어드랍 참여 (캘린더)</button>
       <button id="adminMenuBtn" style="display:none;" onclick="location.href='admin.html'">에어드랍 일정관리 (관리자)</button>
       <button class="logout" id="drawerLogoutBtn">로그아웃</button>
     </nav>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script type="module">
@@ -65,123 +70,178 @@
     const closeMenuBtn = document.getElementById('closeMenuBtn');
     const adminMenuBtn = document.getElementById('adminMenuBtn');
     const drawerLogoutBtn = document.getElementById('drawerLogoutBtn');
+
     function openMenu() {
-      menuDrawer.classList.add('open');
-      menuOverlay.classList.add('open');
-    }
-    function closeMenu() {
-      menuDrawer.classList.remove('open');
-      menuOverlay.classList.remove('open');
-    }
-    hamburgerBtn.onclick = openMenu;
-    closeMenuBtn.onclick = closeMenu;
-    menuOverlay.onclick = closeMenu;
-    drawerLogoutBtn.onclick = async () => {
-      if (confirm('정말 나갈거에요?')) {
-        await signOut(auth);
-        window.location.href = 'login.html';
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.add('open');
+        menuOverlay.classList.add('open');
       }
-    };
+    }
+
+    function closeMenu() {
+      if (menuDrawer && menuOverlay) {
+        menuDrawer.classList.remove('open');
+        menuOverlay.classList.remove('open');
+      }
+    }
+
+    if (hamburgerBtn) hamburgerBtn.onclick = openMenu;
+    if (closeMenuBtn) closeMenuBtn.onclick = closeMenu;
+    if (menuOverlay) menuOverlay.onclick = closeMenu;
+
+    if (drawerLogoutBtn) {
+      drawerLogoutBtn.onclick = async () => {
+        if (confirm('정말 나갈거에요?')) {
+          try {
+            await signOut(auth);
+            window.location.href = 'login.html';
+          } catch (error) {
+            console.error('로그아웃 오류:', error);
+          }
+        }
+      };
+    }
 
     let userId = null;
     let coins = [];
+
+    // 참여기록 불러오기
     async function getParticipations(uid) {
-      const q = collection(db, "users", uid, "participations");
-      const docsnap = await getDocs(q);
-      let list = [];
-      docsnap.forEach(doc => {
-        let d = doc.data();
-        d.id = doc.id;
-        d.startDate = d.startDate ? new Date(d.startDate) : null;
-        d.endDate = d.endDate ? new Date(d.endDate) : null;
-        d.rewardDate = d.rewardDate ? new Date(d.rewardDate) : null;
-        list.push(d);
-      });
-      return list;
+      try {
+        const q = collection(db, "users", uid, "participations");
+        const docsnap = await getDocs(q);
+        let list = [];
+        docsnap.forEach(doc => {
+          let d = doc.data();
+          d.id = doc.id;
+          d.startDate = d.startDate ? new Date(d.startDate) : null;
+          d.endDate = d.endDate ? new Date(d.endDate) : null;
+          d.rewardDate = d.rewardDate ? new Date(d.rewardDate) : null;
+          list.push(d);
+        });
+        return list;
+      } catch (error) {
+        console.error('참여기록 불러오기 오류:', error);
+        return [];
+      }
     }
+
+    // 코인명 목록 불러오기
     async function getCoinNames() {
-      const q = collection(db, "airdrops");
-      const docsnap = await getDocs(q);
-      let names = [];
-      docsnap.forEach(doc => {
-        let d = doc.data();
-        if (d.coinName) names.push({ name: d.coinName, ...d });
-      });
-      return names;
+      try {
+        const q = collection(db, "airdrops");
+        const docsnap = await getDocs(q);
+        let names = [];
+        docsnap.forEach(doc => {
+          let d = doc.data();
+          if (d.coinName) names.push({ name: d.coinName, ...d });
+        });
+        return names;
+      } catch (error) {
+        console.error('코인명 목록 불러오기 오류:', error);
+        return [];
+      }
     }
+
+    // 캘린더 이벤트 생성
     function makeEvents(participations) {
       let events = [];
       participations.forEach(p => {
         const days = p.days || 0;
         const checked = Array.isArray(p.checkedDays) ? p.checkedDays.length : 0;
         const isDone = (checked === days && days > 0);
-        const badge = isDone
-          ? '<span class="badge done">참여완료</span>'
-          : '<span class="badge ing">진행중</span>';
+        const badge = isDone ? '참여완료' : '진행중';
+        
+        // 참여기간 이벤트
         events.push({
           id: p.id,
-          title: `${p.coinName} ${badge}`,
+          title: `${p.coinName} (${badge})`,
           start: p.startDate,
           end: p.endDate ? new Date(new Date(p.endDate).getTime() + 24*60*60*1000) : undefined,
           allDay: true,
+          backgroundColor: isDone ? '#4a90e2' : '#f5a623',
           extendedProps: { ...p }
         });
+        
+        // 지급일 이벤트
         if (p.rewardDate) {
           events.push({
             id: p.id + '-reward',
             title: `${p.coinName} 지급일`,
             start: p.rewardDate,
             allDay: true,
-            color: "#f5a623"
+            backgroundColor: "#28a745"
           });
         }
       });
       return events;
     }
+
+    // 팝업 생성
     function showModal({mode, data, coinNames, onSave, onCancel}) {
       const bg = document.createElement('div');
       bg.className = 'modal-bg';
-      let days = 0;
       let checkedDays = [];
-      let startDate = data.startDate ? new Date(data.startDate) : null;
-      let endDate = data.endDate ? new Date(data.endDate) : null;
-      if (Array.isArray(data.checkedDays)) checkedDays = [...data.checkedDays];
+      
+      if (Array.isArray(data.checkedDays)) {
+        checkedDays = [...data.checkedDays];
+      }
+
       function getDaysArray(start, end) {
         let arr = [];
         if (!start || !end) return arr;
         let cur = new Date(start);
         let i = 1;
         while (cur <= end) {
-          arr.push({ label: `${i}일차 (${cur.toISOString().slice(0,10)})`, value: i, date: new Date(cur) });
+          arr.push({ 
+            label: `${i}일차 (${cur.toISOString().slice(0,10)})`, 
+            value: i, 
+            date: new Date(cur) 
+          });
           cur.setDate(cur.getDate() + 1);
           i++;
         }
         return arr;
       }
+
       function renderDaysCheckbox() {
         const wrap = bg.querySelector('.days-checkbox');
+        if (!wrap) return;
+        
         wrap.innerHTML = '';
+        const startInput = bg.querySelector('#startDate');
+        const endInput = bg.querySelector('#endDate');
+        
+        if (!startInput || !endInput || !startInput.value || !endInput.value) {
+          wrap.innerHTML = '<p>시작일과 종료일을 먼저 선택하세요.</p>';
+          return;
+        }
+        
         const daysArr = getDaysArray(
-          new Date(bg.querySelector('#startDate').value),
-          new Date(bg.querySelector('#endDate').value)
+          new Date(startInput.value),
+          new Date(endInput.value)
         );
-        days = daysArr.length;
+        
         daysArr.forEach(d => {
           const id = `chkday${d.value}`;
           const checked = checkedDays.includes(d.value);
-          wrap.innerHTML += `<label><input type="checkbox" id="${id}" value="${d.value}" ${checked ? 'checked' : ''}> ${d.label}</label>`;
-        });
-        daysArr.forEach(d => {
-          const chk = bg.querySelector(`#chkday${d.value}`);
-          chk && chk.addEventListener('change', e => {
-            if (e.target.checked) {
-              if (!checkedDays.includes(d.value)) checkedDays.push(d.value);
-            } else {
-              checkedDays = checkedDays.filter(v => v !== d.value);
-            }
-          });
+          const label = document.createElement('label');
+          label.innerHTML = `<input type="checkbox" id="${id}" value="${d.value}" ${checked ? 'checked' : ''}> ${d.label}`;
+          wrap.appendChild(label);
+          
+          const chk = label.querySelector('input');
+          if (chk) {
+            chk.addEventListener('change', e => {
+              if (e.target.checked) {
+                if (!checkedDays.includes(d.value)) checkedDays.push(d.value);
+              } else {
+                checkedDays = checkedDays.filter(v => v !== d.value);
+              }
+            });
+          }
         });
       }
+
       bg.innerHTML = `
         <div class="modal">
           <h3>${mode === 'add' ? '참여 등록' : '참여 수정'}</h3>
@@ -194,6 +254,7 @@
           <input type="date" id="startDate" value="${data.startDate ? data.startDate.toISOString().slice(0,10) : ''}" required>
           <label for="endDate">종료일</label>
           <input type="date" id="endDate" value="${data.endDate ? data.endDate.toISOString().slice(0,10) : ''}" required>
+          <label>참여일 체크</label>
           <div class="days-checkbox"></div>
           <label for="rewardDate">지급일</label>
           <input type="date" id="rewardDate" value="${data.rewardDate ? data.rewardDate.toISOString().slice(0,10) : ''}">
@@ -205,50 +266,79 @@
           </div>
         </div>
       `;
+      
       document.body.appendChild(bg);
-      bg.querySelector('#startDate').addEventListener('change', renderDaysCheckbox);
-      bg.querySelector('#endDate').addEventListener('change', renderDaysCheckbox);
+
+      // 날짜 변경 이벤트
+      const startInput = bg.querySelector('#startDate');
+      const endInput = bg.querySelector('#endDate');
+      if (startInput) startInput.addEventListener('change', renderDaysCheckbox);
+      if (endInput) endInput.addEventListener('change', renderDaysCheckbox);
+
       renderDaysCheckbox();
-      bg.querySelector('.save').onclick = () => {
-        const coinName = bg.querySelector('#coinName').value;
-        const startDate = bg.querySelector('#startDate').value;
-        const endDate = bg.querySelector('#endDate').value;
-        const rewardDate = bg.querySelector('#rewardDate').value;
-        const profit = bg.querySelector('#profit').value;
-        const daysArr = getDaysArray(new Date(startDate), new Date(endDate));
-        const checked = [];
-        daysArr.forEach(d => {
-          const chk = bg.querySelector(`#chkday${d.value}`);
-          if (chk && chk.checked) checked.push(d.value);
-        });
-        if (!coinName || !startDate || !endDate) {
-          Swal.fire('입력오류', '코인명, 시작일, 종료일을 입력하세요.', 'warning');
-          return;
-        }
-        if (new Date(startDate) > new Date(endDate)) {
-          Swal.fire('입력오류', '시작일은 종료일 이전이어야 합니다.', 'warning');
-          return;
-        }
-        onSave({
-          coinName,
-          startDate,
-          endDate,
-          days: daysArr.length,
-          checkedDays: checked,
-          rewardDate: rewardDate || null,
-          profit: profit ? Number(profit) : 0
-        });
-        document.body.removeChild(bg);
-      };
-      bg.querySelector('.cancel').onclick = () => {
-        document.body.removeChild(bg);
-        onCancel && onCancel();
-      };
+
+      // 저장 버튼
+      const saveBtn = bg.querySelector('.save');
+      if (saveBtn) {
+        saveBtn.onclick = () => {
+          const coinName = bg.querySelector('#coinName')?.value;
+          const startDate = bg.querySelector('#startDate')?.value;
+          const endDate = bg.querySelector('#endDate')?.value;
+          const rewardDate = bg.querySelector('#rewardDate')?.value;
+          const profit = bg.querySelector('#profit')?.value;
+          
+          if (!coinName || !startDate || !endDate) {
+            if (window.Swal) {
+              Swal.fire('입력오류', '코인명, 시작일, 종료일을 입력하세요.', 'warning');
+            } else {
+              alert('코인명, 시작일, 종료일을 입력하세요.');
+            }
+            return;
+          }
+          
+          if (new Date(startDate) > new Date(endDate)) {
+            if (window.Swal) {
+              Swal.fire('입력오류', '시작일은 종료일 이전이어야 합니다.', 'warning');
+            } else {
+              alert('시작일은 종료일 이전이어야 합니다.');
+            }
+            return;
+          }
+          
+          const daysArr = getDaysArray(new Date(startDate), new Date(endDate));
+          
+          onSave({
+            coinName,
+            startDate,
+            endDate,
+            days: daysArr.length,
+            checkedDays: checkedDays,
+            rewardDate: rewardDate || null,
+            profit: profit ? Number(profit) : 0
+          });
+          
+          document.body.removeChild(bg);
+        };
+      }
+
+      // 취소 버튼
+      const cancelBtn = bg.querySelector('.cancel');
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          document.body.removeChild(bg);
+          if (onCancel) onCancel();
+        };
+      }
     }
+
+    // 캘린더 렌더링
     async function renderCalendar(uid) {
       coins = await getCoinNames();
       let participations = await getParticipations(uid);
-      let calendarEl = document.getElementById('calendar');
+
+      const calendarEl = document.getElementById('calendar');
+      if (!calendarEl) return;
+
       let calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'ko',
@@ -260,51 +350,96 @@
         },
         events: makeEvents(participations),
         eventClick: function(info) {
+          // 지급일 이벤트는 수정 불가
           if (info.event.id.endsWith('-reward')) return;
+          
           const p = participations.find(x => x.id === info.event.id);
+          if (!p) return;
+          
           showModal({
             mode: 'edit',
             data: p,
             coinNames: coins,
             onSave: async (newData) => {
-              await setDoc(doc(db, "users", uid, "participations", p.id), {
-                ...p,
-                ...newData
-              });
-              Swal.fire('수정 완료', '참여 정보가 수정되었습니다.', 'success');
-              participations = await getParticipations(uid);
-              calendar.removeAllEvents();
-              calendar.addEventSource(makeEvents(participations));
+              try {
+                await setDoc(doc(db, "users", uid, "participations", p.id), {
+                  ...p,
+                  ...newData
+                });
+                
+                if (window.Swal) {
+                  Swal.fire('수정 완료', '참여 정보가 수정되었습니다.', 'success');
+                } else {
+                  alert('참여 정보가 수정되었습니다.');
+                }
+                
+                // 새로고침
+                participations = await getParticipations(uid);
+                calendar.removeAllEvents();
+                calendar.addEventSource(makeEvents(participations));
+              } catch (error) {
+                console.error('수정 오류:', error);
+                alert('수정 중 오류가 발생했습니다.');
+              }
             }
           });
         },
         dateClick: function(info) {
+          // 빈 날짜 클릭: 참여 등록
           showModal({
             mode: 'add',
-            data: { startDate: info.dateStr, endDate: info.dateStr, checkedDays: [] },
+            data: { 
+              startDate: info.dateStr, 
+              endDate: info.dateStr, 
+              checkedDays: [] 
+            },
             coinNames: coins,
             onSave: async (newData) => {
-              await addDoc(collection(db, "users", uid, "participations"), newData);
-              Swal.fire('등록 완료', '참여가 등록되었습니다.', 'success');
-              participations = await getParticipations(uid);
-              calendar.removeAllEvents();
-              calendar.addEventSource(makeEvents(participations));
+              try {
+                await addDoc(collection(db, "users", uid, "participations"), newData);
+                
+                if (window.Swal) {
+                  Swal.fire('등록 완료', '참여가 등록되었습니다.', 'success');
+                } else {
+                  alert('참여가 등록되었습니다.');
+                }
+                
+                participations = await getParticipations(uid);
+                calendar.removeAllEvents();
+                calendar.addEventSource(makeEvents(participations));
+              } catch (error) {
+                console.error('등록 오류:', error);
+                alert('등록 중 오류가 발생했습니다.');
+              }
             }
           });
         }
       });
+      
       calendar.render();
     }
+
+    // 인증 체크 및 캘린더 시작
     onAuthStateChanged(auth, user => {
       if (!user) {
-        Swal.fire('로그인이 필요합니다.', '', 'info').then(() => {
+        if (window.Swal) {
+          Swal.fire('로그인이 필요합니다.', '', 'info').then(() => {
+            location.href = "login.html";
+          });
+        } else {
+          alert('로그인이 필요합니다.');
           location.href = "login.html";
-        });
+        }
         return;
       }
+      
       userId = user.uid;
       let userName = user.displayName || (user.email ? user.email.split('@')[0] : '');
-      adminMenuBtn.style.display = (userName === 'difains') ? '' : 'none';
+      
+      if (adminMenuBtn) {
+        adminMenuBtn.style.display = (userName === 'difains') ? 'block' : 'none';
+      }
+      
       renderCalendar(userId);
     });
   </script>
